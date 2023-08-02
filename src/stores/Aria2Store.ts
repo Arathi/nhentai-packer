@@ -10,7 +10,7 @@ interface State {
 export const useAria2Store = defineStore('aria2', {
   state: (): State => ({
     secret: GM_getValue("aria2.secret", undefined),
-    baseURL: GM_getValue("aria2.baseURL", "http://127.0.0.1:6800/jsonrpc"),
+    baseURL: GM_getValue("aria2.baseURL", "ws://127.0.0.1:6800/jsonrpc"),
     proxy: GM_getValue("aria2.proxy", undefined),
   }),
   getters: {},
