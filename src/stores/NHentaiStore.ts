@@ -1,70 +1,99 @@
 import {defineStore} from "pinia";
-import {ITask, TaskStatus} from "../models/Task";
-import {TaskGroup} from "../models/TaskGroup";
+import {Task, ITask, TaskStatus} from "../models/Task";
+import {ITaskGroup, TaskGroup} from "../models/TaskGroup";
 
 interface State {
-  taskGroup: TaskGroup | null;
+  group: TaskGroup | null;
+  tasks: Map<number, Task>;
   gidMap: Map<string, number>;
 }
 
 export const useNHentaiStore = defineStore('nhentai', {
   state: (): State => ({
-    taskGroup: null,
+    group: null,
+    tasks: new Map(),
     gidMap: new Map(),
   }),
   getters: {
-    tasks(state): ITask[] {
-      if (state.taskGroup != null) {
-        return state.taskGroup.tasks as ITask[];
-      }
-      return [];
-    }
+    successTaskAmount(state): number {
+      let successCounter = 0;
+      state.tasks.forEach((t) => {
+        if (t.status == TaskStatus.Success) {
+          successCounter++;
+        }
+      });
+      return successCounter;
+    },
   },
   actions: {
     /**
-     * 任务创建完成
-     * @param fileName
-     * @param gid
+     * 设置任务组信息
+     * @param options 任务组信息
      */
-    taskCreated(fileName: string, gid: string) {
-      const index = this.tasks.findIndex((task) => task.fileName == fileName);
-      if (index >= 0 && index < this.tasks.length) {
-        console.info(`更新任务${fileName}的gid为${gid}`);
-        this.gidMap.set(gid, index);
-        this.tasks[index].status = TaskStatus.Created;
+    setGroup(options: ITaskGroup) {
+      this.group = new TaskGroup(options);
+      this.addTasks(...options.tasks);
+    },
+
+    /**
+     * 添加下载任务
+     *
+     * 尽量要在外部调用
+     *
+     * @param optionsList 任务信息
+     */
+    addTasks(...optionsList: ITask[]) {
+      optionsList.forEach (options => {
+        const task = new Task(options);
+        this.tasks.set(task.id, task);
+      });
+    },
+
+    /**
+     * 任务创建完成
+     * @param taskId 任务ID
+     * @param gid Aria2任务ID
+     */
+    taskCreated(taskId: number, gid: string) {
+      const task = this.tasks.get(taskId);
+      if (task != undefined) {
+        task.gid = gid;
+        this.gidMap.set(gid, taskId);
+        console.info(`更新任务${taskId}的gid为${gid}：`, task);
       }
       else {
-        console.warn(`未找到文件名为${fileName}的任务，获取到的索引为${index}`);
+        console.warn(`未找到编号为${taskId}的任务`);
       }
     },
 
     /**
      * 更新任务进度
-     * @param gid
-     * @param progress
-     * @param status
+     *
+     * @param gid Aria2任务ID
+     * @param completedLength 已下载大小
+     * @param length 文件大小
+     * @param status 状态值
      */
-    updateProgress(gid: string, progress?: number, status?: TaskStatus) {
+    updateProgress(gid: string, completedLength?: number, length?: number, status?: TaskStatus) {
       // 通过gid获取任务
-      const index = this.gidMap.get(gid);
-      if (index == undefined) {
+      const taskId = this.gidMap.get(gid);
+      if (taskId == undefined) {
         console.warn(`当前任务组未找到gid为${gid}的任务`);
         return;
       }
-      if (index < 0 || index >= this.tasks.length) {
-        console.warn(`gid（${gid}）对应了无效的索引（${index}）`);
-        return;
-      }
-      const task = this.tasks[index];
+      const task = this.tasks.get(taskId);
       if (task == undefined) {
-        console.warn(`通过gid（${gid}）/索引（${index}）获取任务失败`);
+        console.warn(`通过 ${gid} => ${taskId} 获取任务失败`);
         return;
       }
 
-      // 更新进度
-      if (progress != undefined) {
-        task.progress = progress;
-        console.info(`已将任务${task.fileName}的进度更新为${progress}`)
+      // 更新下载进度
+      if (completedLength != undefined) {
+        task.completedLength = completedLength;
+        if (length != undefined) {
+          task.length = length;
+        }
+        console.info(`已将任务${task.fileName}已下载${completedLength}B`);
       }
 
       // 更新状态

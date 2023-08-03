@@ -1,13 +1,22 @@
-import {Task, ITask} from "./Task";
+import {ITask} from "./Task";
 
-export class TaskGroup {
+export interface ITaskGroup {
+  id: string;
   name: string;
   referer: string;
-  tasks: Task[];
+  tasks: ITask[];
+}
 
-  constructor(name: string, referer: string, tasks: ITask[]) {
-    this.name = name;
-    this.referer = referer;
-    this.tasks = tasks.map((options) => new Task(options));
+export class TaskGroup {
+  id: string;
+  name: string;
+  referer: string;
+  taskIds: number[];
+
+  constructor(options: ITaskGroup) {
+    this.id = options.id;
+    this.name = options.name;
+    this.referer = options.referer;
+    this.taskIds = options.tasks.map(t => t.id);
   }
 }

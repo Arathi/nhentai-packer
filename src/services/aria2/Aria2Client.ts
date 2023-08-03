@@ -2,13 +2,13 @@ import {
   Aria2EventType,
   Aria2Request,
   Aria2Status,
-  Aria2StatusKeys, CustomEventListener,
+  Aria2StatusKeys,
   ParamList,
   ProgressChangedEventListener,
+  SessionInfoReceivedEventListener,
   SessionInfoResponse,
-  StringResponse,
   TaskCreatedEventListener,
-  Version, VersionReceivedEvent, VersionReceivedEventListener,
+  VersionReceivedEventListener,
   VersionResponse
 } from './types';
 
@@ -24,7 +24,11 @@ export abstract class Aria2Client {
   ) {
     this.secret = secret;
     this.baseURL = baseURL;
-    this.sequence = 0;
+
+    // timestamp(13) + sequence(6)
+    this.sequence = Date.now() * 1000000;
+    console.debug(`设置初始报文序列号为：`, this.sequence);
+
     this.eventTarget = new EventTarget();
   }
 
@@ -43,23 +47,27 @@ export abstract class Aria2Client {
   /**
    * 构建请求
    */
-  buildRequest(method: string, params: ParamList[] = []): Aria2Request {
+  buildRequest(method: string, params: ParamList[] = [], id?: number): Aria2Request {
     let finalParams: ParamList = [];
     let token = this.token;
     if (token != null) {
       finalParams.push(token);
     }
     finalParams.push(...params);
+    if (id == undefined) {
+      id = this.nextId;
+    }
+
     return {
       jsonrpc: "2.0",
       method: method,
       params: finalParams,
-      id: this.nextId,
+      id: id,
     } as Aria2Request;
   }
 
   // addUri
-  buildAddUriRequest(uris: string[], options?: any, position?: number) {
+  buildAddUriRequest(uris: string[], options?: any, position?: number, id?: number) {
     let params: ParamList = [uris];
     if (options != undefined) {
       params.push(options);
@@ -70,7 +78,7 @@ export abstract class Aria2Client {
       }
       params.push(position);
     }
-    return this.buildRequest("aria2.addUri", params);
+    return this.buildRequest("aria2.addUri", params, id);
   }
 
   // remove, forceRemove
@@ -116,8 +124,8 @@ export abstract class Aria2Client {
   // endregion
 
   // region 同步方法
-  addUri(uris: string[], options?: any, position?: number) {
-    const request = this.buildAddUriRequest(uris, options, position);
+  addUri(uris: string[], options?: any, position?: number, taskId?: number) {
+    const request = this.buildAddUriRequest(uris, options, position, taskId);
     this.call<string>(request);
   }
 
@@ -175,11 +183,19 @@ export abstract class Aria2Client {
     this.on("progressChanged", callback as EventListener | null);
   }
 
+  /**
+   * 接收到版本信息
+   * @param callback
+   */
   onVersionReceived(callback: VersionReceivedEventListener | null) {
     this.on("versionReceived", callback as EventListener | null);
   }
 
-  onSessionInfoReceived(callback: CustomEventListener<string> | null) {
+  /**
+   * 接收到会话信息
+   * @param callback
+   */
+  onSessionInfoReceived(callback: SessionInfoReceivedEventListener | null) {
     this.on("sessionInfoReceived", callback as EventListener | null);
   }
 

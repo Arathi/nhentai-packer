@@ -12,10 +12,9 @@ const show = ref(true);
 
 onMounted(() => {
   console.debug("任务窗口挂载完成");
-
   if (!hotKeyRegistered) {
     addEventListener('keydown', (event: KeyboardEvent) => {
-      if (event.key.toUpperCase() === "T") {
+      if (event.altKey && event.key.toUpperCase() === "T") {
         show.value = !show.value;
       }
     });
@@ -24,14 +23,11 @@ onMounted(() => {
 });
 
 const taskAmount = computed(() => {
-  return store.tasks.length;
+  return store.tasks.size;
 });
 
-const completedTaskAmount = computed(() => {
-  let completedTasks = store.tasks.filter(
-    (task) => task.status == TaskStatus.Success
-  );
-  return completedTasks.length;
+const successTaskAmount = computed(() => {
+  return store.successTaskAmount;
 });
 
 function downloadAll() {
@@ -51,12 +47,8 @@ function pack() {
       <button @click="pack" disabled>打包保存</button>
     </div>
     <div class="view-item overall-progress">
-      <progress :value="completedTaskAmount" :max="taskAmount" class="fill" />
+      <progress :value="successTaskAmount" :max="taskAmount" class="fill" />
     </div>
-    <!--
-    <div class="task-status-filter">
-    </div>
-    -->
     <div class="view-item task-list">
       <task-list />
     </div>

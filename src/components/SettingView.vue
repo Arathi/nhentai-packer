@@ -38,7 +38,7 @@ onMounted(() => {
   console.info("设置窗口挂载完成");
   if (!hotKeyRegistered) {
     addEventListener('keydown', (event: KeyboardEvent) => {
-      if (event.key.toUpperCase() === "S") {
+      if (event.altKey && event.key.toUpperCase() === "S") {
         show.value = !show.value;
       }
     });

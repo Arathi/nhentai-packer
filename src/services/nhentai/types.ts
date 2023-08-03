@@ -1,3 +1,4 @@
+// region Gallery
 export interface Gallery {
   /**
    * 作品ID
@@ -114,3 +115,15 @@ interface Title {
    */
   pretty: string;
 }
+// endregion
+
+// region App
+export interface NApp {
+  options: NAppOptions;
+}
+
+interface NAppOptions {
+  csrf_token: string;
+  media_server: string;
+}
+// endregion

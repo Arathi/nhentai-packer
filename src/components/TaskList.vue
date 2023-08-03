@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, provide, onMounted} from 'vue';
+import {provide, onMounted} from 'vue';
 import {NHentaiCrawler} from "../services/nhentai/NHentaiCrawler";
 import {useNHentaiStore} from "../stores/NHentaiStore";
 import TaskInfo from "./TaskInfo.vue";
@@ -11,16 +11,15 @@ provide('crawler', crawler);
 
 onMounted(() => {
   console.info("任务列表挂载完成，开始加载任务");
-  const group = crawler.generateTasks();
+  const group = crawler.generateTaskGroup();
   console.info("任务信息如下：", group);
-  store.taskGroup = group;
+  store.setGroup(group);
 });
-
 </script>
 
 <template>
   <div class="task-list">
-    <div class="list-item" v-for="task in store.tasks" :key="task.fileName">
+    <div class="list-item" v-for="task in store.tasks.values()" :key="task.id">
       <task-info :task="task" />
     </div>
   </div>

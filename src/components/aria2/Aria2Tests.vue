@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import {useAria2Store} from "../../stores/Aria2Store";
 import {Aria2WebSocketClient} from "../../services/aria2/Aria2WebSocketClient";
-import {onMounted} from "vue";
+import {onMounted, ref} from "vue";
 import {
   ProgressChangedEvent,
+  SessionInfoReceivedEvent,
   TaskCreatedEvent,
   VersionReceivedEvent
 } from "../../services/aria2/types";
+import {useNHentaiStore} from "../../stores/NHentaiStore";
+import {aria2statusToTaskStatus, Task, TaskStatus} from "../../models/Task";
 
 const store = useAria2Store();
+const nhStore = useNHentaiStore();
+
+const enabled = ref(false);
+const version = ref("");
+const session = ref("");
 
 const aria2client = new Aria2WebSocketClient(
   store.secret,
@@ -18,26 +26,53 @@ const aria2client = new Aria2WebSocketClient(
 
 aria2client.onConnected((evt) => {
   console.info("Aria2 WebSocket JSON-RPC 服务器连接成功");
+  enabled.value = true;
 });
-
 aria2client.onTaskCreated((event: TaskCreatedEvent) => {
   console.info("Aria2下载任务创建成功：", event);
+  nhStore.taskCreated(event.detail.taskId, event.detail.gid);
 });
-
 aria2client.onProgressChanged((event: ProgressChangedEvent) => {
   console.info("Aria2下载任务进度发生变化：", event);
-})
-
+  const taskStatus: TaskStatus = aria2statusToTaskStatus(event.detail.status);
+  nhStore.updateProgress(
+    event.detail.gid,
+    event.detail.completedLength,
+    event.detail.totalLength,
+    taskStatus,
+  );
+});
 aria2client.onVersionReceived((event: VersionReceivedEvent) => {
   console.info("获取到Aria2版本：", event);
-})
-
-aria2client.onSessionInfoReceived((event: CustomEvent<string>) => {
+  version.value = event.detail.version;
+});
+aria2client.onSessionInfoReceived((event: SessionInfoReceivedEvent) => {
   console.info("获取到Aria2 Session信息：", event);
-})
+  session.value = event.detail.sessionId;
+});
 
 function addUri() {
   console.info("测试添加URI");
+  let task: Task | null = null;
+  for (const t of nhStore.tasks.values()) {
+    if (t.status == TaskStatus.Pending) {
+      task = t;
+      break;
+    }
+  }
+  if (task != null) {
+    console.info(`执行任务`, task);
+    aria2client.addUri(
+      [task.url],
+      {
+        "out": task.fileName,
+        "dir": "D:\\Temp\\aria2client",
+        "all-proxy": "http://127.0.0.1:8118",
+      },
+      undefined,
+      task.id
+    );
+  }
 }
 
 function tellActive() {
@@ -61,17 +96,25 @@ onMounted(() => {
 
 <template>
   <div class="aria2-tests">
+    <div class="test-module">
+      <span>Aria2版本：</span>
+      <span>{{version}}</span>
+    </div>
+    <div class="test-module">
+      <span>Session信息：</span>
+      <span>{{session}}</span>
+    </div>
     <div class="test-module addUri">
-      <button @click="addUri">addUri</button>
+      <button @click="addUri" :disabled="!enabled">addUri</button>
     </div>
     <div class="test-module tellActive">
-      <button @click="tellActive">tellActive</button>
+      <button @click="tellActive" :disabled="!enabled">tellActive</button>
     </div>
     <div class="test-module getVersion">
-      <button @click="getVersion">getVersion</button>
+      <button @click="getVersion" :disabled="!enabled">getVersion</button>
     </div>
     <div class="test-module getSessionInfo">
-      <button @click="getSessionInfo">getSessionInfo</button>
+      <button @click="getSessionInfo" :disabled="!enabled">getSessionInfo</button>
     </div>
   </div>
 </template>
@@ -93,6 +136,10 @@ onMounted(() => {
 
   display: flex;
   flex-direction: column;
+}
+
+button {
+  margin-left: 10px;
 }
 
 .test-module {

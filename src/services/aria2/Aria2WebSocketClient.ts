@@ -1,6 +1,15 @@
 import {Aria2Client} from "./Aria2Client";
 import {Message as JsonRpcMessage} from "./JsonRpc";
-import {Aria2EventType, Aria2Request, Aria2Response, TaskCreatedDetail, TaskCreatedEvent, Version} from "./types";
+import {
+  Aria2EventType,
+  Aria2Request,
+  Aria2Response,
+  Aria2Status,
+  TaskCreatedDetail,
+  TaskCreatedEvent,
+  Version,
+  GidParam
+} from "./types";
 
 export class Aria2WebSocketClient extends Aria2Client {
   _websocket?: WebSocket;
@@ -91,7 +100,20 @@ export class Aria2WebSocketClient extends Aria2Client {
 
   onCallbackMessage(event: MessageEvent, request: Aria2Request) {
     console.info("接收到Aria2回调：", request);
-    // TODO 暂不处理回调报文
+    switch (request.method) {
+      case "aria2.onDownloadComplete": {
+        const gps = request.params as GidParam[];
+        gps.forEach((gp) => {
+          this.emit(this.buildEvent("progressChanged", {
+            gid: gp.gid,
+            totalLength: 0,
+            completedLength: 0,
+            status: "complete"
+          } as Aria2Status));
+        });
+      }
+    }
+    // TODO 暂不处理其他回调报文
   }
 
   buildEvent<D>(type: Aria2EventType, detail: D) {
@@ -107,21 +129,24 @@ export class Aria2WebSocketClient extends Aria2Client {
         const resp = message as Aria2Response<string>;
         const gid = resp.result;
         if (gid != undefined) {
-          const detail = {
+          this.emit(this.buildEvent("taskCreated", {
             gid: gid,
-            //
-          };
-          const evt = new CustomEvent<TaskCreatedDetail>("taskCreated", {
-            detail: detail,
-          });
-          this.emit(evt);
+            taskId: resp.id,
+          }));
         }
         break;
       }
 
       // 更新任务进度
       case "aria2.tellActive": {
-        console.warn("暂不处理aria2.tellActive");
+        // console.warn("暂不处理aria2.tellActive");
+        const resp = message as Aria2Response<Aria2Status[]>;
+        const statusList = resp.result;
+        if (statusList != undefined) {
+          statusList.forEach((status: Aria2Status) => {
+            this.emit(this.buildEvent("progressChanged", status));
+          });
+        }
         break;
       }
 

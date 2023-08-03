@@ -23,7 +23,7 @@ export const Aria2StatusKeys = ["gid", "status", "totalLength", "completedLength
 
 export interface TaskCreatedDetail {
   gid: string;
-  // TODO 需要和任务的其他唯一信息产生关联
+  taskId: number;
 }
 
 export interface Aria2Status {
@@ -31,6 +31,10 @@ export interface Aria2Status {
   status: Aria2StatusValue;
   totalLength: number;
   completedLength: number;
+}
+
+export interface GidParam {
+  gid: string;
 }
 
 export enum Aria2Events {
@@ -106,6 +110,7 @@ export enum Aria2Events {
 export type TaskCreatedEvent = CustomEvent<TaskCreatedDetail>;
 export type ProgressChangedEvent = CustomEvent<Aria2Status>;
 export type VersionReceivedEvent = CustomEvent<Version>;
+export type SessionInfoReceivedEvent = CustomEvent<SessionInfo>;
 
 export interface TaskCreatedEventListener {
   (event: TaskCreatedEvent): void;
@@ -117,6 +122,10 @@ export interface ProgressChangedEventListener {
 
 export interface VersionReceivedEventListener {
   (event: VersionReceivedEvent): void;
+}
+
+export interface SessionInfoReceivedEventListener {
+  (event: SessionInfoReceivedEvent): void;
 }
 
 export interface CustomEventListener<D> {
